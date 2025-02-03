@@ -162,7 +162,7 @@ expressionVisitor node context =
                     if ModuleNameLookupTable.moduleNameFor context.lookupTable firstNode == Just [ "Html" ] then
                         ( [ Rule.error
                                 { message = "Replace `Html.text \"\" with Html.Extra.nothing"
-                                , details = [ "We prefer Html.Extra.nothing" ]
+                                , details = [ "We prefer Html.Extra.nothing when we must create an empty node." ]
                                 }
                                 (Node.range node)
                           ]

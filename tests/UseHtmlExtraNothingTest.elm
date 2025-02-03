@@ -89,7 +89,7 @@ a = Html.text ""
                     |> Review.Test.expectErrors
                         [ Review.Test.error
                             { message = "Replace `Html.text \"\" with Html.Extra.nothing"
-                            , details = [ "We prefer Html.Extra.nothing" ]
+                            , details = [ "We prefer Html.Extra.nothing when we must create an empty node." ]
                             , under = "Html.text \"\""
                             }
                         ]
@@ -107,7 +107,7 @@ a = H.text ""
                     |> Review.Test.expectErrors
                         [ Review.Test.error
                             { message = "Replace `Html.text \"\" with Html.Extra.nothing"
-                            , details = [ "We prefer Html.Extra.nothing" ]
+                            , details = [ "We prefer Html.Extra.nothing when we must create an empty node." ]
                             , under = "H.text \"\""
                             }
                         ]
@@ -125,7 +125,7 @@ a = text ""
                     |> Review.Test.expectErrors
                         [ Review.Test.error
                             { message = "Replace `Html.text \"\" with Html.Extra.nothing"
-                            , details = [ "We prefer Html.Extra.nothing" ]
+                            , details = [ "We prefer Html.Extra.nothing when we must create an empty node." ]
                             , under = "text \"\""
                             }
                         ]
@@ -143,7 +143,7 @@ a = text ""
                     |> Review.Test.expectErrors
                         [ Review.Test.error
                             { message = "Replace `Html.text \"\" with Html.Extra.nothing"
-                            , details = [ "We prefer Html.Extra.nothing" ]
+                            , details = [ "We prefer Html.Extra.nothing when we must create an empty node." ]
                             , under = "text \"\""
                             }
                         ]
