@@ -81,37 +81,35 @@ type Exposed
     | SomeExposed (List String)
 
 
-toImportContext : Import -> ( List String, ImportContext )
+toImportContext : Import -> ImportContext
 toImportContext import_ =
-    ( import_.moduleName |> Node.value
-    , { moduleName = import_.moduleName |> Node.value
-      , moduleAlias = import_.moduleAlias |> Maybe.map Node.value
-      , exposedFunctions =
-            import_.exposingList
-                |> Maybe.map Node.value
-                |> Maybe.map
-                    (\exposingList ->
-                        case exposingList of
-                            Elm.Syntax.Exposing.All _ ->
-                                AllExposed
+    { moduleName = import_.moduleName |> Node.value
+    , moduleAlias = import_.moduleAlias |> Maybe.map Node.value
+    , exposedFunctions =
+        import_.exposingList
+            |> Maybe.map Node.value
+            |> Maybe.map
+                (\exposingList ->
+                    case exposingList of
+                        Elm.Syntax.Exposing.All _ ->
+                            AllExposed
 
-                            Elm.Syntax.Exposing.Explicit nodes ->
-                                List.filterMap
-                                    (\exposition ->
-                                        case Node.value exposition of
-                                            Elm.Syntax.Exposing.FunctionExpose s ->
-                                                Just s
+                        Elm.Syntax.Exposing.Explicit nodes ->
+                            List.filterMap
+                                (\exposition ->
+                                    case Node.value exposition of
+                                        Elm.Syntax.Exposing.FunctionExpose s ->
+                                            Just s
 
-                                            _ ->
-                                                -- we do not care about exposed types, aliases, or infixes.
-                                                Nothing
-                                    )
-                                    nodes
-                                    |> SomeExposed
-                    )
-                |> Maybe.withDefault (SomeExposed [])
-      }
-    )
+                                        _ ->
+                                            -- we do not care about exposed types, aliases, or infixes.
+                                            Nothing
+                                )
+                                nodes
+                                |> SomeExposed
+                )
+            |> Maybe.withDefault (SomeExposed [])
+    }
 
 
 initialContext : Rule.ContextCreator () Context
@@ -129,26 +127,35 @@ initialContext =
 importVisitor : Node Import -> Context -> ( List (Rule.Error {}), Context )
 importVisitor node context =
     let
-        ( key, value ) =
+        value =
             Node.value node
-                |> toImportContext
+
+        moduleName =
+            Node.value value.moduleName
     in
-    ( []
-    , { context
-        | importContext =
-            context.importContext |> Dict.insert key value
-        , firstImport =
-            case ( context.firstImport, key ) of
-                ( _, [ "Html" ] ) ->
-                    Just (Node.range node)
+    if moduleName == [ "Html" ] || moduleName == [ "Html", "Extra" ] then
+        ( []
+        , { context
+            | importContext =
+                Dict.insert
+                    moduleName
+                    (toImportContext value)
+                    context.importContext
+            , firstImport =
+                case ( context.firstImport, moduleName ) of
+                    ( _, [ "Html" ] ) ->
+                        Just (Node.range node)
 
-                ( Nothing, _ ) ->
-                    Just (Node.range node)
+                    ( Nothing, _ ) ->
+                        Just (Node.range node)
 
-                ( Just _, _ ) ->
-                    context.firstImport
-      }
-    )
+                    ( Just _, _ ) ->
+                        context.firstImport
+          }
+        )
+
+    else
+        ( [], context )
 
 
 expressionVisitor : Node Expression -> Context -> ( List (Rule.Error {}), Context )
