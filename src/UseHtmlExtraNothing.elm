@@ -58,6 +58,7 @@ rule =
     Rule.newModuleRuleSchemaUsingContextCreator "UseHtmlExtraNothing" initialContext
         |> Rule.withImportVisitor importVisitor
         |> Rule.withExpressionEnterVisitor expressionVisitor
+        |> Rule.providesFixesForModuleRule
         |> Rule.fromModuleRuleSchema
 
 
@@ -96,7 +97,7 @@ toImportContext import_ =
                 |> Maybe.map
                     (\exposingList ->
                         case exposingList of
-                            Elm.Syntax.Exposing.All nodes ->
+                            Elm.Syntax.Exposing.All _ ->
                                 AllExposed
 
                             Elm.Syntax.Exposing.Explicit nodes ->
@@ -111,7 +112,6 @@ toImportContext import_ =
                                     )
                                     nodes
                                     |> SomeExposed
-                     -- (Node.value nodes)
                     )
                 |> Maybe.withDefault (SomeExposed [])
       }
@@ -141,7 +141,16 @@ importVisitor node context =
     , { context
         | importContext =
             context.importContext |> Dict.insert key value
-        , firstImport = context.firstImport |> Maybe.withDefault (Node.range node) |> Just
+        , firstImport =
+            case ( context.firstImport, key ) of
+                ( _, [ "Html" ] ) ->
+                    Just (Node.range node)
+
+                ( Nothing, _ ) ->
+                    Just (Node.range node)
+
+                ( Just _, _ ) ->
+                    context.firstImport
       }
     )
 
@@ -160,11 +169,45 @@ expressionVisitor node context =
             case ( Node.value firstNode, Node.value secondNode ) of
                 ( FunctionOrValue _ "text", Literal "" ) ->
                     if ModuleNameLookupTable.moduleNameFor context.lookupTable firstNode == Just [ "Html" ] then
-                        ( [ Rule.error
+                        ( [ Rule.errorWithFix
                                 { message = "Replace `Html.text \"\" with Html.Extra.nothing"
                                 , details = [ "We prefer Html.Extra.nothing when we must create an empty node." ]
                                 }
                                 (Node.range node)
+                                (case
+                                    Dict.get
+                                        [ "Html", "Extra" ]
+                                        context.importContext
+                                        |> Debug.log "htmlExtraImport"
+                                 of
+                                    Just { exposedFunctions, moduleAlias, moduleName } ->
+                                        [ Fix.replaceRangeBy (Node.range node)
+                                            (case exposedFunctions of
+                                                AllExposed ->
+                                                    "nothing"
+
+                                                SomeExposed exposedFnNames ->
+                                                    if List.member "nothing" exposedFnNames then
+                                                        "nothing"
+
+                                                    else
+                                                        Maybe.withDefault moduleName
+                                                            moduleAlias
+                                                            ++ [ "nothing" ]
+                                                            |> String.join "."
+                                            )
+                                        ]
+
+                                    Nothing ->
+                                        case context.firstImport of
+                                            Just { start } ->
+                                                [ Fix.replaceRangeBy (Node.range node) "Html.Extra.nothing"
+                                                , Fix.insertAt start "import Html.Extra\n"
+                                                ]
+
+                                            Nothing ->
+                                                []
+                                )
                           ]
                         , context
                         )
