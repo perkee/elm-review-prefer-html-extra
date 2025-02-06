@@ -69,11 +69,6 @@ type alias Context =
     }
 
 
-type ImportReference
-    = QualifiedReference
-    | UnqualifiedReference (List String)
-
-
 type alias ImportContext =
     { moduleName : ModuleName
     , moduleAlias : Maybe ModuleName
@@ -108,6 +103,7 @@ toImportContext import_ =
                                                 Just s
 
                                             _ ->
+                                                -- we do not care about exposed types, aliases, or infixes.
                                                 Nothing
                                     )
                                     nodes
@@ -159,13 +155,6 @@ expressionVisitor : Node Expression -> Context -> ( List (Rule.Error {}), Contex
 expressionVisitor node context =
     case Node.value node of
         Application [ firstNode, secondNode ] ->
-            let
-                _ =
-                    Debug.log "context" context
-
-                _ =
-                    Debug.log "nodes" { firstNode = Node.value firstNode, secondNode = Node.value secondNode }
-            in
             case ( Node.value firstNode, Node.value secondNode ) of
                 ( FunctionOrValue _ "text", Literal "" ) ->
                     if ModuleNameLookupTable.moduleNameFor context.lookupTable firstNode == Just [ "Html" ] then
@@ -178,7 +167,6 @@ expressionVisitor node context =
                                     Dict.get
                                         [ "Html", "Extra" ]
                                         context.importContext
-                                        |> Debug.log "htmlExtraImport"
                                  of
                                     Just { exposedFunctions, moduleAlias, moduleName } ->
                                         [ Fix.replaceRangeBy (Node.range node)
@@ -213,10 +201,6 @@ expressionVisitor node context =
                         )
 
                     else
-                        let
-                            _ =
-                                Debug.log "uneq" <| ModuleNameLookupTable.moduleNameFor context.lookupTable firstNode
-                        in
                         ( [], context )
 
                 _ ->
